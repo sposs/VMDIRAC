@@ -23,6 +23,8 @@ from DIRAC.Core.Utilities.ThreadScheduler import gThreadScheduler
 # VMDIRAC
 from VMDIRAC.WorkloadManagementSystem.Client.NovaImage    import NovaImage
 from VMDIRAC.WorkloadManagementSystem.Client.OcciImage    import OcciImage
+from VMDIRAC.WorkloadManagementSystem.Client.AmazonImage    import AmazonImage
+
 from VMDIRAC.WorkloadManagementSystem.DB.VirtualMachineDB import VirtualMachineDB
 from VMDIRAC.Security                                     import VmProperties
 
@@ -257,6 +259,23 @@ class VirtualMachineManagerHandler( RequestHandler ):
       publicIP = publicIP[ 'Value' ]
       
       result = nima.stopInstance( uniqueID, publicIP )
+    elif ( cloudDriver == 'amazon' ):
+      imageName = gVirtualMachineDB.getImageNameFromInstance( uniqueID )
+      if not imageName[ 'OK' ]:
+        self.__logResult( 'declareInstanceHalting getImageNameFromInstance: ', imageName )
+        return imageName
+      imageName = imageName[ 'Value' ]
+
+      gLogger.info( 'Declare instance haltig:  %s, endpoint: %s imageName: %s' % (str(uniqueID),endpoint,imageName) )
+      awsima = None
+      try:
+        awsima   = AmazonImage( imageName, endpoint )
+      except Exception:
+        self.__logResult("Failed to connect to AWS")
+        pass
+      if awsima:
+        result = awsima.stopInstance( uniqueID )
+
 
     else:
       gLogger.warn( 'Unexpected cloud driver:  %s' % cloudDriver )
